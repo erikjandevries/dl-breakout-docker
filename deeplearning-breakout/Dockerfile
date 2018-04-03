@@ -25,8 +25,14 @@ RUN apt-get update \
 WORKDIR /repositories/gym
 RUN pip install -e '.[atari]'
 
-# Install training app
-COPY ./play-random /repositories/play-random
+# Install Keras
+RUN pip install keras
 
-WORKDIR /repositories/play-random
-ENTRYPOINT ["python3", "play-random.py"]
+# Install training app
+COPY breakout /repositories/breakout
+
+EXPOSE 6006
+
+WORKDIR /repositories/breakout
+ENTRYPOINT ["python3"]
+CMD [ "play.py" ]
