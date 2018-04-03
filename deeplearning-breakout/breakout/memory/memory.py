@@ -1,32 +1,10 @@
 import numpy as np
 import random
 
+from .ringbuffer import RingBuffer
 
-class Memory:
-    def __init__(self, size, initial_value=None):
-        self.data = [initial_value] * (size + 1)
-        self.start = 0
-        self.end = 0
 
-    def append(self, memory_item):
-        self.data[self.end] = memory_item
-        self.end = (self.end + 1) % len(self.data)
-        if self.end == self.start:
-            self.start = (self.start + 1) % len(self.data)
-
-    def __getitem__(self, idx):
-        return self.data[(self.start + idx) % len(self.data)]
-
-    def __len__(self):
-        if self.end < self.start:
-            return self.end + len(self.data) - self.start
-        else:
-            return self.end - self.start
-
-    def __iter__(self):
-        for i in range(len(self)):
-            yield self[i]
-
+class Memory(RingBuffer):
     def get_state(self, index=None, n=4):
         if index is None:
             index = self.end
@@ -46,8 +24,11 @@ class Memory:
 
         return None
 
-    def get_batch(self, k=32):
-        ind = random.sample(range(4, len(self)), k)
+    def get_batch(self, k=32, include_last=False):
+        if include_last:
+            ind = [self.end - 1] + random.sample(range(4, len(self)), k - 1)
+        else:
+            ind = random.sample(range(4, len(self)), k)
         states = [self.get_state(index=i) for i in ind]
         next_states = [self.get_state(index=i + 1) for i in ind]
 
