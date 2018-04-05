@@ -33,4 +33,4 @@ class RingBuffer():
 
     def save(self, filepath):
         with open(filepath, 'wb') as f:
-            pickle.dump(self.__dict__, f)
+            pickle.dump(self.__dict__, f, protocol=4)
