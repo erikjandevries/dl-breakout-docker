@@ -65,21 +65,22 @@ def main(max_episodes, max_frames, memory_size, load_model, save_model, load_mem
 
     agent.model.summary()
 
+    n_episodes = 0
+    n_frames = 0
+    frames_per_episode = []
+
+    if load_model:
+        agent.load_model(load_model)
+
+    if load_memory:
+        agent.load_memory(load_memory)
+        # skip the framecount ahead - to work with the appropriate epsilon
+        n_frames = len(agent.memory)
+        log.info("Memory size: {}".format(n_frames))
+
+    log.info("Training for a maximum of {} episodes and {} frames".format(max_episodes, max_frames))
+
     try:
-        n_episodes = 0
-        n_frames = 0
-        frames_per_episode = []
-
-        if load_model:
-            agent.load_model(load_model)
-
-        if load_memory:
-            agent.load_memory(load_memory)
-            # skip the framecount ahead - to work with the appropriate epsilon
-            n_frames = len(agent.memory)
-
-        log.info("Training for a maximum of {} episodes and {} frames".format(max_episodes, max_frames))
-
         while (n_episodes < max_episodes and
                n_frames < max_frames):
             n_episodes += 1
