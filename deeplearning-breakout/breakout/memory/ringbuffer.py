@@ -1,3 +1,6 @@
+import pickle
+
+
 class RingBuffer():
     def __init__(self, size, initial_value=None):
         self.data = [initial_value] * (size + 1)
@@ -22,3 +25,12 @@ class RingBuffer():
     def __iter__(self):
         for i in range(len(self)):
             yield self[i]
+
+    def load(self, filepath):
+        with open(filepath, 'rb') as f:
+            tmp_dict = pickle.load(f)
+        self.__dict__.update(tmp_dict)
+
+    def save(self, filepath):
+        with open(filepath, 'wb') as f:
+            pickle.dump(self.__dict__, f, pickle.HIGHEST_PROTOCOL)

@@ -1,8 +1,9 @@
 import argparse
 
 import gym
-# import numpy as np
+import numpy as np
 import random
+from time import sleep
 
 from agent import Agent
 from memory import MemoryItem
@@ -21,28 +22,61 @@ log.addHandler(ch)
 log.addHandler(fh)
 
 
-def get_epsilon_for_iteration(iteration):
-    if iteration > 1e6:
-        return 0.1
-    return 1 - (0.9 * iteration / 1e6)
+def mean(numbers):
+    return float(sum(numbers)) / max(len(numbers), 1)
 
 
-def main(max_episodes, max_frames, memory_size, load_model, save_model):
-    env = gym.make('BreakoutDeterministic-v4')
+def get_epsilon_for_iteration(n_frames, n_frames_in_episode, avg_frames_per_episode):
+    # Base probability of experimentation
+    if n_frames < 1e3:
+        p = 1
+    elif n_frames < 1e6:
+        # # Up to 1M frames played, gradually decay from 100% to 10%
+        # p = 1 - (0.9 * n_frames / 1e6)
+        # Up to 1M frames played, gradually decay from 50% to 10%
+        p = 0.5 - (0.4 * n_frames / 1e6)
+    else:
+        # If at least 1M frames played, experiment only 10% of the time
+        p = 0.1
+
+    if n_frames > 1e3:
+        # Start an episode with less experimentation
+        # Finish with more experimentation
+        # Gradually increase from 0.1 * p to 1.9 * p
+        p *= (0.2 + 1.8 * n_frames_in_episode / avg_frames_per_episode)
+    return p
+
+
+def get_mean_frames_per_episode(frames_per_episode, last_n=50):
+    if len(frames_per_episode) > last_n:
+        return mean(frames_per_episode[-last_n:])
+    elif len(frames_per_episode) > 0:
+        return mean(frames_per_episode)
+    return 200
+
+
+def main(max_episodes, max_frames, memory_size, load_model, save_model, load_memory, save_memory):
+    # env = gym.make('BreakoutDeterministic-v4')
+    env = gym.make('Breakout-v4')
     agent = Agent(
         env=env,
         memory_size=memory_size
     )
-
-    if load_model:
-        log.info("Loading model file: {}".format(load_model))
-        agent.load_model(load_model)
 
     agent.model.summary()
 
     try:
         n_episodes = 0
         n_frames = 0
+        frames_per_episode = []
+
+        if load_model:
+            agent.load_model(load_model)
+
+        if load_memory:
+            agent.load_memory(load_memory)
+            # skip the framecount ahead - to work with the appropriate epsilon
+            n_frames = len(agent.memory)
 
         log.info("Training for a maximum of {} episodes and {} frames".format(max_episodes, max_frames))
 
@@ -50,17 +84,23 @@ def main(max_episodes, max_frames, memory_size, load_model, save_model):
                n_frames < max_frames):
             n_episodes += 1
 
+            mean_frames_per_episode = get_mean_frames_per_episode(frames_per_episode)
+
             next_observation = preprocess(env.reset())
 
             episode_done = False
             total_reward = 0
             agent._ba = 0
+            n_frames_in_episode = 0
 
             while not episode_done:
                 n_frames += 1
+                n_frames_in_episode += 1
                 observation = next_observation
 
-                if random.uniform(0, 1) <= get_epsilon_for_iteration(n_frames):
+                epsilon = get_epsilon_for_iteration(n_frames, n_frames_in_episode, mean_frames_per_episode)
+
+                if random.uniform(0, 1) <= epsilon:
                     action = agent.pick_random_action()
                 else:
                     action = agent.pick_best_action()
@@ -70,19 +110,24 @@ def main(max_episodes, max_frames, memory_size, load_model, save_model):
 
                 agent.memory.append(MemoryItem(observation, action, next_observation, reward, episode_done, info))
 
-                if len(agent.memory) > 64:
+                if len(agent.memory) > 65:
                     agent.train_step()
 
                 total_reward += reward
 
-            log.info("E {} - f {} - r {} - BAs {}".format(n_episodes, n_frames, total_reward, agent._ba))
+            frames_per_episode.append(n_frames_in_episode)
+
+            log.info("E {} - f {} - r {} - BAs {} - mfpe {}".format(
+                n_episodes, n_frames_in_episode, total_reward, agent._ba, mean_frames_per_episode))
             if n_episodes % 100 == 0:
-                env.render()
-                log.info("Saving model file: {}".format(save_model))
+                # env.render()
                 agent.save_model(save_model)
 
     except KeyboardInterrupt:
         print("\nUser interrupted training...")
+    finally:
+        agent.save_model(save_model)
+        agent.save_memory(save_memory)
 
     env.close()
 
@@ -111,6 +156,13 @@ if __name__ == '__main__':
                         dest="save_model",
                         default="./data/model.h5",
                         help="Save model to file")
+    parser.add_argument("--load-memory",
+                        dest="load_memory",
+                        help="Pre-filled memory to load")
+    parser.add_argument("--save-memory",
+                        dest="save_memory",
+                        default="./data/memory.pkl",
+                        help="Save memory to file")
     args = parser.parse_args()
 
     main(
@@ -118,5 +170,7 @@ if __name__ == '__main__':
         max_frames=args.max_frames,
         memory_size=args.memory_size,
         load_model=args.load_model,
-        save_model=args.save_model
+        save_model=args.save_model,
+        load_memory=args.load_memory,
+        save_memory=args.save_memory
     )

@@ -20,7 +20,8 @@ log.addHandler(fh)
 
 
 def main(load_model=None, max_episodes=5):
-    env = gym.make('BreakoutDeterministic-v4')
+    # env = gym.make('BreakoutDeterministic-v4')
+    env = gym.make('Breakout-v4')
     agent = Agent(
         env=env,
         memory_size=100

@@ -174,7 +174,17 @@ class Agent:
         return model
 
     def load_model(self, filepath):
+        log.info("Loading model file: {}".format(filepath))
         self.model.load_weights(filepath)
 
     def save_model(self, filepath):
+        log.info("Saving model file: {}".format(filepath))
         self.model.save_weights(filepath)
+
+    def load_memory(self, filepath):
+        log.info("Loading memory file: {}".format(filepath))
+        self.memory.load(filepath)
+
+    def save_memory(self, filepath):
+        log.info("Saving memory file: {}".format(filepath))
+        self.memory.save(filepath)
