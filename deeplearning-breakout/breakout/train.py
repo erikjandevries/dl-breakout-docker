@@ -122,6 +122,7 @@ def main(max_episodes, max_frames, memory_size, load_model, save_model, load_mem
             if n_episodes % 100 == 0:
                 # env.render()
                 agent.save_model(save_model)
+                agent.save_memory(save_memory)
 
     except KeyboardInterrupt:
         print("\nUser interrupted training...")
